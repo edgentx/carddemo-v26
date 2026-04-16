@@ -27,3 +27,8 @@ func (c *CardPolicy) Execute(cmd interface{}) ([]shared.DomainEvent, error) {
 func (c *CardPolicy) GetID() string {
 	return c.ID
 }
+
+// ID satisfies the shared.Aggregate interface.
+func (c *CardPolicy) ID() string {
+	return c.ID
+}
