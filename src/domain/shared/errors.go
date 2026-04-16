@@ -3,9 +3,12 @@ package shared
 import "errors"
 
 var (
-	// ErrUnknownCommand is returned when an unregistered command is executed.
+	// ErrUnknownCommand is returned when a command handler is not found.
 	ErrUnknownCommand = errors.New("unknown command")
 
-	// ErrUpstreamNotFound is returned when the required source files or streams are missing.
+	// ErrUpstreamNotFound is returned when upstream data sources are missing.
 	ErrUpstreamNotFound = errors.New("upstream source not found")
+
+	// ErrInvalidState is returned when an aggregate state prevents an action.
+	ErrInvalidState = errors.New("invalid aggregate state")
 )
