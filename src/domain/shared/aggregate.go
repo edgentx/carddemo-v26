@@ -30,3 +30,8 @@ func (a *AggregateRoot) ClearEvents() {
 func (a *AggregateRoot) GetEvents() []DomainEvent {
 	return a.events
 }
+
+// GetVersion returns the version.
+func (a *AggregateRoot) GetVersion() int {
+	return a.version
+}
