@@ -2,7 +2,7 @@ package command
 
 // RegisterUserCmd is the command to register a new user.
 type RegisterUserCmd struct {
-	AggregateID string
+	AggregateID    string
 	ContactInfo    ContactInfoVO
 	CreditProfile  CreditProfileVO
 	Identification IdentificationVO
@@ -18,6 +18,6 @@ type CreditProfileVO struct {
 }
 
 type IdentificationVO struct {
-	IDNumber string
+	IDNumber   string
 	IsVerified bool
 }
