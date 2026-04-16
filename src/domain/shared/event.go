@@ -1,75 +1,27 @@
 package shared
 
-import (
-	"encoding/json"
-	"time"
+// CloudEventEnvelope defines the standard metadata wrapper for all domain events.
+type CloudEventEnvelope struct {
+	// ID uniquely identifies the event.
+	ID string `json:"id"`
+	// Source identifies the context in which an event happened.
+	Source string `json:"source"`
+	// SpecVersion identifies the CloudEvents specification version.
+	SpecVersion string `json:"specversion"`
+	// Type describes the type of event related to the originating occurrence.
+	Type string `json:"type"`
+	// DataContentType describes the content type of the data value.
+	DataContentType string `json:"datacontenttype"`
+	// Subject identifies the specific subject of the event.
+	Subject string `json:"subject,omitempty"`
+	// Time represents when the occurrence happened.
+	Time string `json:"time,omitempty"`
+}
 
-	"github.com/cloudevents/sdk-go/v2/event"
-)
-
-// DomainEvent represents a domain event.
+// DomainEvent is the interface that all domain events must satisfy.
 type DomainEvent interface {
-	// Type returns the type of the event.
+	// Type returns the CloudEvent type (e.g., com.carddemo.account.opened).
 	Type() string
-
-	// Data returns the payload of the event.
-	Data() interface{}
-
-	// OccurredAt returns when the event happened.
-	OccurredAt() time.Time
-}
-
-// CloudEvent is an implementation of DomainEvent using CNCF CloudEvents spec.
-type CloudEvent struct {
-	ce event.Event
-}
-
-// NewCloudEvent creates a new CloudEvent.
-// Fixed syntax: Added opening parenthesis for parameters.
-func NewCloudEvent(eventType string, source string, data interface{}) CloudEvent {
-	now := time.Now()
-
-	ce := event.New(eventType)
-	ce.SetSource(source)
-	ce.SetTime(now)
-
-	// Handle data encoding based on type to support simple maps and structs
-	switch v := data.(type) {
-	case []byte:
-		_ = ce.SetData(v)
-	case string:
-		_ = ce.SetData(v)
-	case time.Time:
-		// Explicitly handle time if necessary, though usually wrapped in struct
-		_ = ce.SetData(v.Format(time.RFC3339))
-	default:
-		// Default to JSON encoding for structs and maps
-		dataBytes, err := json.Marshal(v)
-		if err == nil {
-			_ = ce.SetData(dataBytes)
-		}
-	}
-
-	return CloudEvent{ce: ce}
-}
-
-// Type returns the event type.
-func (e CloudEvent) Type() string {
-	return e.ce.Type()
-}
-
-// Data returns the event data (application/json).
-func (e CloudEvent) Data() interface{} {
-	// Since we use SetData which expects bytes/content encoding, 
-	// we unmarshal back to interface{} for domain usage convenience. 
-	// In a high-perf system, we might keep as bytes, but for this exercise, 
-	// the tests expect map[string]interface{}.
-	var data interface{}
-	_ = json.Unmarshal(e.ce.Data(), &data)
-	return data
-}
-
-// OccurredAt returns the timestamp.
-func (e CloudEvent) OccurredAt() time.Time {
-	return e.ce.Time()
+	// AggregateID returns the ID of the aggregate that generated this event.
+	AggregateID() string
 }
