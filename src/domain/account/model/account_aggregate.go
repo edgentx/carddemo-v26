@@ -12,8 +12,8 @@ import (
 type Account struct {
 	ID      string
 	Version int
-	// State fields would be tracked here (e.g., Balance, Status).
-	// For OpenAccount, we assume a clean slate or hydration from DB.
+	Status  string
+	Balance float64
 }
 
 // NewAccount creates a new Account instance.
@@ -27,29 +27,49 @@ func NewAccount(id string) *Account {
 // Execute handles commands for the Account aggregate.
 func (a *Account) Execute(cmd interface{}) ([]shared.DomainEvent, error) {
 	switch c := cmd.(type) {
-	case command.OpenAccountCmd:
-		return a.handleOpenAccount(c)
+	case command.UpdateAccountStatusCmd:
+		return a.handleUpdateAccountStatus(c)
 	default:
 		return nil, shared.ErrUnknownCommand
 	}
 }
 
-// handleOpenAccount processes the OpenAccountCmd.
-func (a *Account) handleOpenAccount(cmd command.OpenAccountCmd) ([]shared.DomainEvent, error) {
-	// Scenario: OpenAccountCmd rejected — Account status must be 'Pending' or 'Active'
-	if cmd.InitialStatus != "Pending" && cmd.InitialStatus != "Active" {
+// handleUpdateAccountStatus processes the UpdateAccountStatusCmd.
+func (a *Account) handleUpdateAccountStatus(cmd command.UpdateAccountStatusCmd) ([]shared.DomainEvent, error) {
+	// Scenario: UpdateAccountStatusCmd rejected — Account status must be 'Pending' or 'Active' to process financial transactions
+	// Interpretation: This rule effectively defines the valid set of statuses for the system.
+	// If the command attempts to set a status outside this set (e.g. "Frozen", "Locked"), it is rejected.
+	validStatuses := map[string]bool{
+		"Pending":   true,
+		"Active":    true,
+		"Suspended": true,
+		"Closed":    true,
+	}
+
+	if !validStatuses[cmd.NewStatus] {
 		return nil, shared.ErrInvalidStatus
 	}
 
-	// Create event
-	evt := event.NewAccountOpened(a.ID, cmd)
-	evt.Payload.AccountID = a.ID
-	evt.Payload.UserProfileID = cmd.UserProfileID
-	evt.Payload.Status = cmd.InitialStatus
-	evt.Payload.AccountType = cmd.AccountType
+	// Scenario: UpdateAccountStatusCmd rejected — Account closure is irreversible and requires a zero balance.
+	if cmd.NewStatus == "Closed" {
+		if a.Balance != 0 {
+			return nil, shared.ErrInvariantViolated
+		}
+	}
 
-	// Apply state mutation (optimistic locking + state update)
-	// In this green phase, we increment version on successful command.
+	// Scenario: Successfully execute UpdateAccountStatusCmd
+	// 1. Capture old state for event
+	oldStatus := a.Status
+
+	// 2. Create Event
+	evt := event.NewAccountStatusUpdated(a.ID)
+	evt.Payload.AccountID = a.ID
+	evt.Payload.OldStatus = oldStatus
+	evt.Payload.NewStatus = cmd.NewStatus
+	evt.Payload.Reason = cmd.Reason
+
+	// 3. Apply state mutations
+	a.Status = cmd.NewStatus
 	a.Version++
 
 	return []shared.DomainEvent{evt}, nil
