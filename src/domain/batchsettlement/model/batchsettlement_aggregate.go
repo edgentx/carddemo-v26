@@ -27,3 +27,8 @@ func (b *BatchSettlement) Execute(cmd interface{}) ([]shared.DomainEvent, error)
 func (b *BatchSettlement) GetID() string {
 	return b.ID
 }
+
+// ID satisfies the shared.Aggregate interface.
+func (b *BatchSettlement) ID() string {
+	return b.ID
+}
