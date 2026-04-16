@@ -1,16 +1,27 @@
 package model
 
 import (
-	"time"
-
 	"github.com/carddemo/project/src/domain/shared"
 )
 
-// CardPolicy represents the CardPolicy aggregate.
+// CardPolicy represents the Card Policy Aggregate
 type CardPolicy struct {
 	shared.AggregateRoot
-	CardType       string    `bson:"card_type" json:"card_type"`
-	EffectiveDate  time.Time `bson:"effective_date" json:"effective_date"`
-	ExpirationDate time.Time `bson:"expiration_date" json:"expiration_date"`
-	Version        int       `bson:"version" json:"version"`
+	ID         string
+	AccountID  string
+	DailyLimit int
+	WeeklyLimit int
+	Version    int
+}
+
+// NewCardPolicy creates a new CardPolicy aggregate
+func NewCardPolicy(id, accountID string, daily, weekly int) *CardPolicy {
+	return &CardPolicy{
+		AggregateRoot: shared.AggregateRoot{},
+		ID:            id,
+		AccountID:     accountID,
+		DailyLimit:    daily,
+		WeeklyLimit:   weekly,
+		Version:       0,
+	}
 }
