@@ -1,11 +1,8 @@
 package shared
 
-import "net/http"
+import "github.com/go-chi/chi/v5"
 
-// Routers returns a list of sub-routers to be mounted in main.
-// Currently returns an empty router to satisfy compilation.
-func Routers() http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNotFound)
-	})
+// NewRouter creates a new chi router instance.
+func NewRouter() *chi.Mux {
+	return chi.NewRouter()
 }
