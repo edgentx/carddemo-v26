@@ -1,136 +1,66 @@
-package tests
+package mocks
 
 import (
-	"errors"
-	"sync"
-	"time"
+	"context"
 
-	"github.com/carddemo/project/src/domain/batchsettlement/model"
-	"github.com/carddemo/project/src/domain/batchsettlement/repository"
-	"github.com/carddemo/project/src/domain/transaction/model"
-	"github.com/carddemo/project/src/domain/transaction/repository"
+	"github.com/card-demo/project/src/domain/report/repository"
+	"github.com/card-demo/project/src/domain/exportjob/repository"
+	"github.com/card-demo/project/src/domain/report/model"
+	export_model "github.com/card-demo/project/src/domain/exportjob/model"
+	"github.com/stretchr/testify/mock"
 )
 
-// MockTransactionRepositoryWithQuerySupport extends the basic mock to include query methods.
-type MockTransactionRepositoryWithQuerySupport struct {
-	mu            sync.RWMutex
-	transactions  map[string]*model.Transaction
-	indexesCreated bool
+// MockReportRepository
+type MockReportRepository struct {
+	mock.Mock
 }
 
-func NewMockTransactionRepositoryWithQuerySupport() *MockTransactionRepositoryWithQuerySupport {
-	return &MockTransactionRepositoryWithQuerySupport{
-		transactions: make(map[string]*model.Transaction),
+func (m *MockReportRepository) Get(ctx context.Context, id string) (*model.ReportAggregate, error) {
+	args := m.Called(ctx, id)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
 	}
+	return args.Get(0).(*model.ReportAggregate), args.Error(1)
 }
 
-var _ repository.TransactionRepository = (*MockTransactionRepositoryWithQuerySupport)(nil)
-
-func (m *MockTransactionRepositoryWithQuerySupport) Get(id string) (*model.Transaction, error) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	return m.transactions[id], nil
+func (m *MockReportRepository) Save(ctx context.Context, agg *model.ReportAggregate) error {
+	args := m.Called(ctx, agg)
+	return args.Error(0)
 }
 
-func (m *MockTransactionRepositoryWithQuerySupport) Save(aggregate *model.Transaction) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.transactions[aggregate.ID] = aggregate
-	return nil
+func (m *MockReportRepository) Delete(ctx context.Context, id string) error {
+	args := m.Called(ctx, id)
+	return args.Error(0)
 }
 
-func (m *MockTransactionRepositoryWithQuerySupport) List() ([]*model.Transaction, error) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	var arr []*model.Transaction
-	for _, v := range m.transactions {
-		arr = append(arr, v)
+func (m *MockReportRepository) List(ctx context.Context, filters repository.ListFilters) ([]model.ReportAggregate, error) {
+	args := m.Called(ctx, filters)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
 	}
-	return arr, nil
+	return args.Get(0).([]model.ReportAggregate), args.Error(1)
 }
 
-func (m *MockTransactionRepositoryWithQuerySupport) CreateIndexes() error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.indexesCreated = true
-	return nil
+// MockExportJobRepository
+type MockExportJobRepository struct {
+	mock.Mock
 }
 
-func (m *MockTransactionRepositoryWithQuerySupport) FindByCardAndDateRange(cardId string, start, end time.Time) ([]*model.Transaction, error) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	var res []*model.Transaction
-	for _, t := range m.transactions {
-		if t.CardID == cardId && t.Timestamp.After(start) && t.Timestamp.Before(end) {
-			res = append(res, t)
-		}
+func (m *MockExportJobRepository) Get(ctx context.Context, id string) (*export_model.ExportJobAggregate, error) {
+	args := m.Called(ctx, id)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
 	}
-	return res, nil
+	return args.Get(0).(*export_model.ExportJobAggregate), args.Error(1)
 }
 
-func (m *MockTransactionRepositoryWithQuerySupport) FindByStatus(status string) ([]*model.Transaction, error) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	var res []*model.Transaction
-	for _, t := range m.transactions {
-		if t.Status == status {
-			res = append(res, t)
-		}
-	}
-	return res, nil
+func (m *MockExportJobRepository) Save(ctx context.Context, agg *export_model.ExportJobAggregate) error {
+	args := m.Called(ctx, agg)
+	return args.Error(0)
 }
 
-// MockBatchSettlementRepositoryWithBulkSupport supports bulk operations and aggregation queries.
-type MockBatchSettlementRepositoryWithBulkSupport struct {
-	mu      sync.RWMutex
-	batches map[string]*model.BatchSettlement
-}
-
-func NewMockBatchSettlementRepositoryWithBulkSupport() *MockBatchSettlementRepositoryWithBulkSupport {
-	return &MockBatchSettlementRepositoryWithBulkSupport{
-		batches: make(map[string]*model.BatchSettlement),
-	}
-}
-
-var _ repository.BatchSettlementRepository = (*MockBatchSettlementRepositoryWithBulkSupport)(nil)
-
-func (m *MockBatchSettlementRepositoryWithBulkSupport) Get(id string) (*model.BatchSettlement, error) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	return m.batches[id], nil
-}
-
-func (m *MockBatchSettlementRepositoryWithBulkSupport) Save(aggregate *model.BatchSettlement) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.batches[aggregate.ID] = aggregate
-	return nil
-}
-
-func (m *MockBatchSettlementRepositoryWithBulkSupport) List() ([]*model.BatchSettlement, error) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	var arr []*model.BatchSettlement
-	for _, v := range m.batches {
-		arr = append(arr, v)
-	}
-	return arr, nil
-}
-
-func (m *MockBatchSettlementRepositoryWithBulkSupport) BulkInsertTransactions(transactions []*model.Transaction) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	// In a real scenario, this would insert to a Transaction collection.
-	// For the mock, we can accept the call to verify interface compliance.
-	if len(transactions) == 0 {
-		return errors.New("cannot insert empty batch")
-	}
-	return nil
-}
-
-func (m *MockBatchSettlementRepositoryWithBulkSupport) GetSettlementAggregation(startDate, endDate time.Time) ([]*model.SettlementGroup, error) {
-	// Return dummy data to simulate the aggregation pipeline structure
-	return []*model.SettlementGroup{
-		{MerchantID: "m1", Date: startDate, Count: 1, Total: 100.0},
-	}, nil
+func (m *MockExportJobRepository) List(ctx context.Context, filters repository.ListFilters) ([]export_model.ExportJobAggregate, error) {
+	// Assuming similar list filters for now
+	args := m.Called(ctx, filters)
+	return args.Get(0).([]export_model.ExportJobAggregate), args.Error(1)
 }
