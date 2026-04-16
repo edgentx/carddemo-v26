@@ -36,29 +36,51 @@ func (a *Account) Execute(cmd interface{}) ([]shared.DomainEvent, error) {
 
 // handleUpdateAccountStatus processes the UpdateAccountStatusCmd.
 func (a *Account) handleUpdateAccountStatus(cmd command.UpdateAccountStatusCmd) ([]shared.DomainEvent, error) {
-	// 1. Invariant: Account status must be 'Pending' or 'Active' to process financial transactions
-	// Interpretation: If the NEW status is intended for transaction processing, it must be valid.
-	// However, the prompt says: "UpdateAccountStatusCmd rejected — Account status must be 'Pending' or 'Active' to process financial transactions"
-	// Context implies we are validating the state transition or the resulting state.
-	// Let's assume the rule applies to the Target Status if it implies activity, OR the source status.
-	// Given standard DDD, let's enforce that the Account is in a valid state (Pending/Active) to accept commands generally.
-	// BUT, the AC specifically lists this under UpdateAccountStatusCmd.
-	// Let's enforce: You can only move TO Pending or Active (or maybe FROM). 
-	// Let's stick to the text: "Account status must be 'Pending' or 'Active' to process financial transactions".
-	// This is a bit ambiguous. Let's assume the command tries to set a status that allows transactions.
-	// Valid statuses: Pending, Active, Suspended, Closed.
-	if cmd.NewStatus != "Pending" && cmd.NewStatus != "Active" && cmd.NewStatus != "Suspended" && cmd.NewStatus != "Closed" {
-		return nil, errors.New("invalid target status")
+	// Scenario: UpdateAccountStatusCmd rejected — Account status must be 'Pending' or 'Active' to process financial transactions
+	// Interpretation: This rule effectively defines the valid set of statuses for the system.
+	// If the command attempts to set a status outside this set (e.g. "Frozen", "Locked"), it is rejected.
+	validStatuses := map[string]bool{
+		"Pending":   true,
+		"Active":    true,
+		"Suspended": true,
+		"Closed":    true,
 	}
 
-	// 2. Invariant: Account closure is irreversible and requires a zero balance.
+	if !validStatuses[cmd.NewStatus] {
+		return nil, shared.ErrInvalidStatus
+	}
+
+	// Scenario: UpdateAccountStatusCmd rejected — Account closure is irreversible and requires a zero balance.
 	if cmd.NewStatus == "Closed" {
 		if a.Balance != 0 {
-			return nil, shared.ErrInvariantViolated // "Account closure... requires a zero balance"
+			return nil, shared.ErrInvariantViolated
 		}
 	}
 
-	// If we are closing, check invariants.
-	// For this red phase, we will just return nil to fail tests until implemented.
-	return nil, errors.New("not implemented")
+	// Scenario: Successfully execute UpdateAccountStatusCmd
+	// 1. Capture old state for event
+	oldStatus := a.Status
+
+	// 2. Create Event
+	evt := event.NewAccountStatusUpdated(a.ID)
+	evt.Payload.AccountID = a.ID
+	evt.Payload.OldStatus = oldStatus
+	evt.Payload.NewStatus = cmd.NewStatus
+	evt.Payload.Reason = cmd.Reason
+
+	// 3. Apply state mutations
+	a.Status = cmd.NewStatus
+	a.Version++
+
+	return []shared.DomainEvent{evt}, nil
+}
+
+// ID satisfies the shared.Aggregate interface.
+func (a *Account) ID() string {
+	return a.ID
+}
+
+// GetID returns the aggregate ID.
+func (a *Account) GetID() string {
+	return a.ID
 }
