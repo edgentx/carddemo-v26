@@ -27,3 +27,8 @@ func (e *ExportJob) Execute(cmd interface{}) ([]shared.DomainEvent, error) {
 func (e *ExportJob) GetID() string {
 	return e.ID
 }
+
+// ID satisfies the shared.Aggregate interface.
+func (e *ExportJob) ID() string {
+	return e.ID
+}
