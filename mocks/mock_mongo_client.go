@@ -2,109 +2,93 @@ package mocks
 
 import (
 	"context"
-	"sync"
+	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-// MockMongoClient simulates a MongoDB client for testing.
+// MockMongoClient mimics mongo.Client for unit testing repositories.
+// This is a simplified stub to satisfy interfaces and prevent nil panics.
 type MockMongoClient struct {
-	mu          sync.Mutex
-	Databases   map[string]*MockDatabase
-	ShouldError bool
+	Database *MockDatabase
 }
 
-// NewMockMongoClient creates a new mock client.
 func NewMockMongoClient() *MockMongoClient {
 	return &MockMongoClient{
-		Databases: make(map[string]*MockDatabase),
+		Database: &MockDatabase{
+			Collections: make(map[string]*MockCollection),
+		},
 	}
 }
 
-// Database gets or creates a database mock.
 func (m *MockMongoClient) Database(name string, opts ...*options.DatabaseOptions) *MockDatabase {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	if db, ok := m.Databases[name]; ok {
-		return db
-	}
-
-	db := &MockDatabase{
-		Client:     m,
-		Name:       name,
-		Collections: make(map[string]*MockCollection),
-	}
-	m.Databases[name] = db
-	return db
+	return m.Database
 }
 
-// MockDatabase simulates a MongoDB database.
+func (m *MockMongoClient) Disconnect(ctx context.Context) error {
+	return nil
+}
+
+func (m *MockMongoClient) Ping(ctx context.Context) error {
+	return nil
+}
+
+// MockDatabase mimics mongo.Database.
 type MockDatabase struct {
-	Client      *MockMongoClient
-	Name        string
 	Collections map[string]*MockCollection
-	mu          sync.Mutex
 }
 
-// Collection gets or creates a collection mock.
 func (d *MockDatabase) Collection(name string, opts ...*options.CollectionOptions) *MockCollection {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-
-	if col, ok := d.Collections[name]; ok {
-		return col
+	if _, ok := d.Collections[name]; !ok {
+		d.Collections[name] = &MockCollection{Name: name, Data: make([]bson.Raw, 0)}
 	}
-
-	col := &MockCollection{
-		Name:   name,
-		DBName: d.Name,
-		Data:   make([]bson.D, 0),
-	}
-	d.Collections[name] = col
-	return col
+	return d.Collections[name]
 }
 
-// MockCollection simulates a MongoDB collection for testing repository logic.
+// MockCollection mimics mongo.Collection.
 type MockCollection struct {
-	Name   string
-	DBName string
-	Data   []bson.D // Slice of documents to simulate storage
-	mu     sync.Mutex
-	// InsertError allows simulating DB errors on writes
-	InsertError bool
+	Name string
+	Data []bson.Raw
 }
 
-// InsertOne simulates inserting a document.
-func (m *MockCollection) InsertOne(ctx context.Context, document interface{}, opts ...*options.InsertOneOptions) (*mongo.InsertOneResult, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	if m.InsertError {
-		return nil, &mongo.WriteException{}
-	}
-
-	// In a real mock for TDD, we might parse 'document' to bson.D and append to m.Data
-	// For now, success is sufficient to drive interface implementation.
-	return &mongo.InsertOneResult{}, nil
+func (c *MockCollection) InsertOne(ctx context.Context, document interface{}, opts ...*options.InsertOneOptions) (*mongo.InsertOneResult, error) {
+	return &mongo.InsertOneResult{InsertedID: "mock_id"}, nil
 }
 
-// FindOne simulates finding a single document. Currently returns an empty cursor.
-func (m *MockCollection) FindOne(ctx context.Context, filter interface{}, opts ...*options.FindOneOptions) *mongo.SingleResult {
-	// Return a result that decodes to nothing (document not found) unless configured.
-	// This forces the implementation to handle NotFound cases correctly.
-	return mongo.NewSingleResultFromDocument(bson.D{}, nil, nil)
-}
-
-// Find simulates finding multiple documents.
-func (m *MockCollection) Find(ctx context.Context, filter interface{}, opts ...*options.FindOptions) (*mongo.Cursor, error) {
-	// Return empty cursor initially.
+func (c *MockCollection) Find(ctx context.Context, filter interface{}, opts ...*options.FindOptions) (*mongo.Cursor, error) {
+	// Return a cursor with 0 results for now to satisfy interface return types in Red Phase.
+	// In a more advanced mock, we would decode 'filter' and return static BSON data.
 	return nil, nil
 }
 
-// Indexes returns a mock index view.
-func (m *MockCollection) Indexes() mongo.IndexView {
-	return mongo.IndexView{}
+func (c *MockCollection) FindOne(ctx context.Context, filter interface{}, opts ...*options.FindOneOptions) *mongo.SingleResult {
+	// Return an empty decoded result (mock mongo.ErrNoDocuments if needed)
+	return mongo.NewSingleResultFromDocument(bson.M{}, nil, nil)
+}
+
+func (c *MockCollection) UpdateOne(ctx context.Context, filter interface{}, update interface{}, opts ...*options.UpdateOptions) (*mongo.UpdateResult, error) {
+	return &mongo.UpdateResult{MatchedCount: 1, ModifiedCount: 1}, nil
+}
+
+func (c *MockCollection) Indexes() mongo.IndexModelView {
+	// This is a tricky interface to mock perfectly without the real driver internals.
+	// We return a mock that satisfies the method calls expected by CreateIndexes.
+	return &MockIndexView{}
+}
+
+// MockIndexView mimics mongo.IndexView.
+type MockIndexView struct{}
+
+func (m *MockIndexView) CreateMany(ctx context.Context, models []mongo.IndexModel, opts ...*options.CreateIndexesOptions) ([]string, error) {
+	return []string{"index_1"}, nil
+}
+
+func (m *MockIndexView) CreateOne(ctx context.Context, model mongo.IndexModel, opts ...*options.CreateIndexesOptions) (string, error) {
+	return "index_1", nil
+}
+
+func (m *MockIndexView) ListSpecifications(ctx context.Context, opts ...*options.ListSpecificationsOptions) ([]mongo.IndexSpecification, error) {
+	return []mongo.IndexSpecification{}, nil
 }
