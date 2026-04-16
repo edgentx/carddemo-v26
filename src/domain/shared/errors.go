@@ -2,10 +2,10 @@ package shared
 
 import "errors"
 
+// Common domain errors.
 var (
-	// ErrNotFound is returned when a requested entity does not exist.
+	// ErrNotFound is returned when an entity cannot be found in the repository.
 	ErrNotFound = errors.New("entity not found")
-
-	// ErrConcurrencyConflict is returned when an optimistic lock check fails.
-	ErrConcurrencyConflict = errors.New("concurrency conflict: version mismatch")
+	// ErrConcurrency is returned when an optimistic locking check fails.
+	ErrConcurrency = errors.New("concurrency conflict")
 )
