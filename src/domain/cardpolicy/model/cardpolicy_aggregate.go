@@ -10,8 +10,6 @@ import (
 type CardPolicy struct {
 	shared.AggregateRoot
 	ID string
-	// Internal fields to validate invariants against would go here
-	// e.g., RiskProfile string
 }
 
 // NewCardPolicy creates a new CardPolicy instance.
