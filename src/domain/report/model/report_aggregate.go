@@ -27,3 +27,8 @@ func (r *Report) Execute(cmd interface{}) ([]shared.DomainEvent, error) {
 func (r *Report) GetID() string {
 	return r.ID
 }
+
+// ID satisfies the shared.Aggregate interface.
+func (r *Report) ID() string {
+	return r.ID
+}
