@@ -1,93 +1,46 @@
 package model
 
 import (
-	"github.com/carddemo/project/src/domain/shared"
-	"github.com/carddemo/project/src/domain/transaction/command"
-	"github.com/carddemo/project/src/domain/transaction/event"
+	"errors"
+	"time"
+
+	"github.com/google/uuid"
 )
 
-// Transaction represents the Transaction aggregate.
+var (
+	// ErrInvalidTransaction is returned when a transaction cannot be created.
+	ErrInvalidTransaction = errors.New("invalid transaction data")
+)
+
+// Transaction represents the domain aggregate for financial transactions.
 type Transaction struct {
-	shared.AggregateRoot
-	ID string
+	ID        string
+	CardID    string
+	Amount    float64
+	Currency  string
+	MerchantID string
+	Status    string // e.g., "pending", "completed", "reversed"
+	Timestamp time.Time
+	// Version is used for optimistic locking.
+	Version int
 }
 
-// NewTransaction creates a new Transaction instance.
-func NewTransaction(id string) *Transaction {
-	return &Transaction{ID: id}
-}
-
-// Execute handles commands for the Transaction aggregate.
-func (t *Transaction) Execute(cmd interface{}) ([]shared.DomainEvent, error) {
-	switch c := cmd.(type) {
-	case command.SubmitTransactionCmd:
-		return t.handleSubmitTransaction(c)
-	case command.ReverseTransactionCmd:
-		return t.handleReverseTransaction(c)
-	default:
-		return nil, shared.ErrUnknownCommand
+// NewTransaction creates a new Transaction aggregate.
+func NewTransaction(id, cardID string, amount float64, currency, merchantID, status string) (*Transaction, error) {
+	if id == "" {
+		id = uuid.New().String()
 	}
-}
-
-// handleSubmitTransaction validates the command and applies the resulting events.
-func (t *Transaction) handleSubmitTransaction(cmd command.SubmitTransactionCmd) ([]shared.DomainEvent, error) {
-	// Invariant 1: Transaction amount must be strictly greater than zero
-	if cmd.Amount <= 0 {
-		return nil, shared.ErrAmountMustBePositive
+	if amount <= 0 {
+		return nil, ErrInvalidTransaction
 	}
-
-	// Invariant 2: Account must be in 'Active' status to accept transactions
-	// Note: In a real application, the aggregate might need to load the Account state
-	// or the state is validated/passed via the command by the application layer.
-	// Based on the Command DTO structure, we validate the status provided.
-	if cmd.AccountStatus != "Active" {
-		return nil, shared.ErrAccountNotActive
-	}
-
-	// Create the domain event
-	evt := event.TransactionSubmitted{
-		TransactionID:   cmd.TransactionID,
-		AccountID:       cmd.AccountID,
-		CardID:          cmd.CardID,
-		Amount:          cmd.Amount,
-		TransactionType: cmd.TransactionType,
-	}
-
-	// Record the event internally (if needed for replay/audit) and return
-	t.RecordEvent(evt)
-
-	return []shared.DomainEvent{evt}, nil
-}
-
-// handleReverseTransaction validates the command and applies the resulting events.
-func (t *Transaction) handleReverseTransaction(cmd command.ReverseTransactionCmd) ([]shared.DomainEvent, error) {
-	// Invariant 1: Transaction amount must be strictly greater than zero.
-	if cmd.Amount <= 0 {
-		return nil, shared.ErrAmountMustBePositive
-	}
-
-	// Invariant 2: Account must be in 'Active' status to accept transactions.
-	if cmd.AccountStatus != "Active" {
-		return nil, shared.ErrAccountNotActive
-	}
-
-	// Create the domain event.
-	evt := event.TransactionReversed{
-		TransactionID: cmd.TransactionID,
-		Reason:        cmd.Reason,
-	}
-
-	t.RecordEvent(evt)
-
-	return []shared.DomainEvent{evt}, nil
-}
-
-// ID returns the aggregate ID.
-func (t *Transaction) GetID() string {
-	return t.ID
-}
-
-// ID satisfies the shared.Aggregate interface.
-func (t *Transaction) ID() string {
-	return t.ID
+	return &Transaction{
+		ID:        id,
+		CardID:    cardID,
+		Amount:    amount,
+		Currency:  currency,
+		MerchantID: merchantID,
+		Status:    status,
+		Timestamp: time.Now(),
+		Version:   0,
+	}, nil
 }
