@@ -42,27 +42,28 @@ func (c *Card) Handle(cmd interface{}) error {
 }
 
 // handleReportLost processes the ReportCardLostCmd.
-// TDD RED PHASE: This implementation is skeletal and intended to fail tests.
 func (c *Card) handleReportLost(cmd *command.ReportCardLostCmd) error {
 	// 1. Check Invariants (State validation)
 
-	// REFACTOR/TODO: Check if already lost/stolen
-	// if c.Status == "LOST" || c.Status == "STOLEN" {
-	// 	return ErrCardAlreadyLost
-	// }
+	// Check if already lost/stolen
+	if c.Status == "LOST" || c.Status == "STOLEN" {
+		return ErrCardAlreadyLost
+	}
 
-	// REFACTOR/TODO: Check daily limits
-	// currentUsage := c.DailyUsage
-	// if cmd.ForceUsage != nil {
-	// 	currentUsage = *cmd.ForceUsage
-	// }
-	// if currentUsage > c.DailyLimit {
-	// 	return ErrLimitExceeded
-	// }
+	// Check daily limits
+	currentUsage := c.DailyUsage
+	if cmd.ForceUsage != nil {
+		currentUsage = *cmd.ForceUsage
+	}
+
+	// Business rule: usage cannot exceed limit.
+	if currentUsage > c.DailyLimit {
+		return ErrLimitExceeded
+	}
 
 	// 2. Apply State Changes
-	// c.Status = "LOST"
-	// c.UpdatedAt = time.Now()
+	c.Status = "LOST"
+	c.UpdatedAt = time.Now()
 
 	// 3. Emit Event
 	e := &event.CardReportedLost{
