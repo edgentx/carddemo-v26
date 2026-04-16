@@ -2,14 +2,10 @@ package shared
 
 import "errors"
 
-// Common Domain Errors
 var (
-	// ErrUnknownCommand is returned when a command type is not recognized by the aggregate.
+	// ErrUnknownCommand is returned when an unregistered command is executed.
 	ErrUnknownCommand = errors.New("unknown command")
 
-	// ErrInvalidState is returned when a business rule invariant is violated based on state.
-	ErrInvalidState = errors.New("invalid state: operation not allowed")
-
-	// ErrImmutable is returned when trying to modify an immutable entity or aggregate.
-	ErrImmutable = errors.New("entity is immutable and cannot be modified")
+	// ErrUpstreamNotFound is returned when the required source files or streams are missing.
+	ErrUpstreamNotFound = errors.New("upstream source not found")
 )
