@@ -1,15 +1,23 @@
 package shared
 
-import "time"
+import "github.com/carddemo/project/src/domain/shared/event"
 
-// DomainEvent represents a domain event interface.
-type DomainEvent interface {
-	OccurredOn() time.Time
+// AggregateRoot is the base for all aggregates
+type AggregateRoot struct {
+	events []event.DomainEvent
 }
 
-// AggregateRoot is the base struct for all aggregates.
-type AggregateRoot struct {
-	ID      string   `bson:"_id,omitempty" json:"id"`
-	Version int      `bson:"version" json:"version"`
-	Events  []DomainEvent `bson:"-" json:"-"`
+// AddEvent adds a domain event to the aggregate
+func (a *AggregateRoot) AddEvent(e event.DomainEvent) {
+	a.events = append(a.events, e)
+}
+
+// GetEvents retrieves all pending events
+func (a *AggregateRoot) GetEvents() []event.DomainEvent {
+	return a.events
+}
+
+// ClearEvents clears the events list
+func (a *AggregateRoot) ClearEvents() {
+	a.events = nil
 }
