@@ -3,9 +3,9 @@ package shared
 import "errors"
 
 var (
-	// ErrUnknownCommand is returned when a command cannot be handled by the aggregate.
-	ErrUnknownCommand = errors.New("unknown command")
+	// ErrNotFound is returned when a requested entity does not exist.
+	ErrNotFound = errors.New("entity not found")
 
-	// ErrInvariantViolated is returned when a domain invariant is violated.
-	ErrInvariantViolated = errors.New("invariant violation")
+	// ErrConcurrencyConflict is returned when an optimistic lock check fails.
+	ErrConcurrencyConflict = errors.New("concurrency conflict: version mismatch")
 )
