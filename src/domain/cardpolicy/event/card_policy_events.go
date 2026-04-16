@@ -27,6 +27,11 @@ func (e CardPolicyAssigned) AggregateID() string {
 	return e.Meta.AggregateID
 }
 
+// GetPayload returns the payload of the event.
+func (e CardPolicyAssigned) GetPayload() interface{} {
+	return e.Payload
+}
+
 type CardPolicyAssignedPayload struct {
 	CardID               string   `json:"card_id"`
 	PolicyType           string   `json:"policy_type"`
