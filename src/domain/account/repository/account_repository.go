@@ -4,17 +4,21 @@ import (
 	"github.com/carddemo/project/src/domain/account/model"
 )
 
-// AccountRepository defines the storage contract for the Account aggregate.
+// AccountRepository defines the contract for account persistence.
+// It is owned by the domain layer.
 type AccountRepository interface {
-	// Get retrieves an aggregate by ID. Returns ErrAggregateNotFound if not found.
-	Get(id string) (*model.AccountAggregate, error)
+	// Get retrieves an account aggregate by ID.
+	// Returns ErrNotFound if the account does not exist.
+	Get(id string) (*model.Account, error)
 
-	// Save persists the aggregate state atomically.
-	Save(agg *model.AccountAggregate) error
+	// Save persists the account aggregate state.
+	// Handles optimistic concurrency via the aggregate's Version field.
+	// Atomic: writes state, event store, and outbox in one transaction (conceptually).
+	Save(aggregate *model.Account) error
 
-	// Delete removes an aggregate.
+	// Delete removes an account by ID.
 	Delete(id string) error
 
-	// List returns all aggregates.
-	List() ([]*model.AccountAggregate, error)
+	// List returns all accounts.
+	List() ([]*model.Account, error)
 }
