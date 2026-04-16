@@ -27,3 +27,8 @@ func (u *UserProfile) Execute(cmd interface{}) ([]shared.DomainEvent, error) {
 func (u *UserProfile) GetID() string {
 	return u.ID
 }
+
+// ID satisfies the shared.Aggregate interface.
+func (u *UserProfile) ID() string {
+	return u.ID
+}
