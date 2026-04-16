@@ -2,10 +2,13 @@ package shared
 
 import "errors"
 
-// Common domain errors.
 var (
-	// ErrUnknownCommand is returned when an aggregate does not recognize the command type.
+	// ErrUnknownCommand is returned when the aggregate doesn't support the command.
 	ErrUnknownCommand = errors.New("unknown command")
-	// ErrConcurrencyConflict is returned when the expected version does not match the actual state.
-	ErrConcurrencyConflict = errors.New("concurrency conflict")
+
+	// ErrAmountMustBePositive is returned when the transaction amount is invalid.
+	ErrAmountMustBePositive = errors.New("transaction amount must be strictly greater than zero")
+
+	// ErrAccountNotActive is returned when the account is not in a valid state.
+	ErrAccountNotActive = errors.New("account must be in 'Active' status to accept debit or credit transactions")
 )
