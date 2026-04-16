@@ -1,136 +1,37 @@
 package model
 
 import (
-	"github.com/carddemo/project/src/domain/report/command"
-	"github.com/carddemo/project/src/domain/report/event"
+	"time"
+
 	"github.com/carddemo/project/src/domain/shared"
 )
 
-// ReportStatus represents the state of the report aggregate.
-type ReportStatus string
-
-const (
-	// StatusDraft indicates the report is in a configuration/planning phase.
-	StatusDraft ReportStatus = "draft"
-	// StatusRequested indicates the report generation has been queued.
-	StatusRequested ReportStatus = "requested"
-	// StatusGenerating indicates the report is currently being processed.
-	StatusGenerating ReportStatus = "generating"
-	// StatusCompleted indicates the report generation finished successfully.
-	StatusCompleted ReportStatus = "completed"
-	// StatusArchived indicates the report is immutable and stored.
-	StatusArchived ReportStatus = "archived"
-	// StatusFailed indicates the report generation failed.
-	StatusFailed ReportStatus = "failed"
-)
-
-// Report represents the Report aggregate.
+// Report represents the aggregate root for financial reports.
 type Report struct {
-	shared.AggregateRoot
-	ID     string
-	Status ReportStatus
-	// SourceDataFinalized indicates if the settlement data is ready.
-	SourceDataFinalized bool
-	// Archived indicates if the report is in an immutable state.
-	Archived bool
+	shared.AggregateBase
+	ID        string
+	AccountID string
+	Type      string
+	Status    string
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	Data      map[string]interface{}
 }
 
-// NewReport creates a new Report instance.
-func NewReport(id string) *Report {
+// NewReport creates a new Report aggregate.
+func NewReport(id, accountID, reportType string) *Report {
 	return &Report{
-		ID:                  id,
-		Status:              StatusDraft,
-		SourceDataFinalized: true, // Default to true for happy path, configurable for error cases.
-		Archived:            false,
+		ID:        id,
+		AccountID: accountID,
+		Type:      reportType,
+		Status:    "pending",
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+		AggregateBase: shared.AggregateBase{},
 	}
 }
 
-// Execute handles commands for the Report aggregate.
-func (r *Report) Execute(cmd interface{}) ([]shared.DomainEvent, error) {
-	switch c := cmd.(type) {
-	case command.RequestReportCmd:
-		return r.handleRequestReport(c)
-	case command.ArchiveReportCmd:
-		return r.handleArchiveReport(c)
-	default:
-		return nil, shared.ErrUnknownCommand
-	}
-}
-
-// handleRequestReport implements the business logic for requesting a report.
-func (r *Report) handleRequestReport(cmd command.RequestReportCmd) ([]shared.DomainEvent, error) {
-	// Invariant Check: Generated reports are immutable and cannot be altered once archived.
-	if r.Archived {
-		return nil, shared.ErrImmutable
-	}
-
-	// Invariant Check: Report generation cannot start until the required source data settlement has been finalized.
-	if !r.SourceDataFinalized {
-		return nil, shared.ErrInvalidState
-	}
-
-	// Apply state changes (Transition to Requested)
-	r.Status = StatusRequested
-
-	// Create Event
-	payload := event.ReportRequested{
-		ReportID:   r.ID,
-		ConfigID:   cmd.ConfigID,
-		Format:     cmd.Format,
-		Parameters: cmd.Parameters,
-	}
-
-	evt := shared.NewCloudEvent(
-		event.ReportRequestedEventType,
-		r.GetID(),
-		payload,
-	)
-
-	return []shared.DomainEvent{evt}, nil
-}
-
-// handleArchiveReport implements the business logic for archiving a generated report.
-func (r *Report) handleArchiveReport(cmd command.ArchiveReportCmd) ([]shared.DomainEvent, error) {
-	// Invariant Check: Generated reports are immutable and cannot be altered once archived.
-	if r.Archived {
-		return nil, shared.ErrImmutable
-	}
-
-	// Invariant Check: Source data must be finalized to perform this operation.
-	if !r.SourceDataFinalized {
-		return nil, shared.ErrInvalidState
-	}
-
-	// Apply state changes (Transition to Archived)
-	r.Status = StatusArchived
-	r.Archived = true
-
-	// Create Event
-	payload := event.ReportArchived{
-		ReportID:        r.ID,
-		StorageLocation: cmd.StorageLocation,
-	}
-
-	evt := shared.NewCloudEvent(
-		event.ReportArchivedEventType,
-		r.GetID(),
-		payload,
-	)
-
-	return []shared.DomainEvent{evt}, nil
-}
-
-// GetID returns the aggregate ID.
-func (r *Report) GetID() string {
+// AggregateID satisfies shared.Aggregate interface
+func (r *Report) AggregateID() string {
 	return r.ID
-}
-
-// ID satisfies the shared.Aggregate interface.
-func (r *Report) ID() string {
-	return r.ID
-}
-
-// MarkSourceDataNotFinalized is a helper for testing/setting up the invalid state scenario.
-func (r *Report) MarkSourceDataNotFinalized() {
-	r.SourceDataFinalized = false
 }
