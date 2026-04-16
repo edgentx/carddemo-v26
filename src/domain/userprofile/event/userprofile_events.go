@@ -1,16 +1,17 @@
 package event
 
 import (
-	"github.com/carddemo/project/src/domain/shared"
 	"time"
+
+	"github.com/carddemo/project/src/domain/shared"
 )
 
 // UserRegistered is emitted when a new user profile is created.
 type UserRegistered struct {
 	shared.DomainEventBase
 	AggregateID string `json:"aggregate_id"`
-	Email string `json:"email"`
-	CreditScore int `json:"credit_score"`
+	Email       string `json:"email"`
+	CreditScore int    `json:"credit_score"`
 }
 
 // NewUserRegistered creates a UserRegistered event.
