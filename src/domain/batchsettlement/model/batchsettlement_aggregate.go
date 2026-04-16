@@ -19,9 +19,9 @@ var (
 // BatchSettlement represents the BatchSettlement aggregate.
 type BatchSettlement struct {
 	shared.AggregateRoot
-	ID                  string
-	HasUncommittedTxns  bool // Invariant: Flag indicating presence of pending transactions
-	IsBalanced          bool // Invariant: Flag indicating financial balance (Debits == Credits)
+	ID                 string
+	HasUncommittedTxns bool // Invariant: Flag indicating presence of pending transactions
+	IsBalanced         bool // Invariant: Flag indicating financial balance (Debits == Credits)
 }
 
 // NewBatchSettlement creates a new BatchSettlement instance.
@@ -53,9 +53,7 @@ func (b *BatchSettlement) handleOpenBatch(cmd command.OpenBatchCmd) ([]shared.Do
 		return nil, ErrBalanceMismatch
 	}
 
-	// 2. Apply State Changes (Implicit: OpenBatchCmd implies starting a cycle, assuming state reset is handled if needed)
-
-	// 3. Generate Event
+	// 2. Generate Event
 	e := event.BatchOpened{
 		DomainEventMeta:   shared.NewDomainEventMeta(b.ID),
 		SettlementDate:    cmd.SettlementDate,
