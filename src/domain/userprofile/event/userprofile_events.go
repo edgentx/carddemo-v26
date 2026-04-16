@@ -27,3 +27,22 @@ func NewUserRegistered(aggregateID string, email string, creditScore int) shared
 		CreditScore: creditScore,
 	}
 }
+
+// UserLinkedToAccount is emitted when a user is linked to an account.
+type UserLinkedToAccount struct {
+	shared.DomainEventBase
+	AggregateID string `json:"aggregate_id"`
+	AccountID   string `json:"account_id"`
+}
+
+// NewUserLinkedToAccount creates a UserLinkedToAccount event.
+func NewUserLinkedToAccount(aggregateID string, accountID string) shared.DomainEvent {
+	return &UserLinkedToAccount{
+		DomainEventBase: shared.DomainEventBase{
+			Type:      "com.carddemo.user.linked.to.account",
+			Timestamp: time.Now().UTC(),
+		},
+		AggregateID: aggregateID,
+		AccountID:   accountID,
+	}
+}
