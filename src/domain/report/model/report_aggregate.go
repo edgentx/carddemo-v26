@@ -50,6 +50,8 @@ func (r *Report) Execute(cmd interface{}) ([]shared.DomainEvent, error) {
 	switch c := cmd.(type) {
 	case command.RequestReportCmd:
 		return r.handleRequestReport(c)
+	case command.ArchiveReportCmd:
+		return r.handleArchiveReport(c)
 	default:
 		return nil, shared.ErrUnknownCommand
 	}
@@ -87,6 +89,37 @@ func (r *Report) handleRequestReport(cmd command.RequestReportCmd) ([]shared.Dom
 	return []shared.DomainEvent{evt}, nil
 }
 
+// handleArchiveReport implements the business logic for archiving a generated report.
+func (r *Report) handleArchiveReport(cmd command.ArchiveReportCmd) ([]shared.DomainEvent, error) {
+	// Invariant Check: Generated reports are immutable and cannot be altered once archived.
+	if r.Archived {
+		return nil, shared.ErrImmutable
+	}
+
+	// Invariant Check: Source data must be finalized to perform this operation.
+	if !r.SourceDataFinalized {
+		return nil, shared.ErrInvalidState
+	}
+
+	// Apply state changes (Transition to Archived)
+	r.Status = StatusArchived
+	r.Archived = true
+
+	// Create Event
+	payload := event.ReportArchived{
+		ReportID:        r.ID,
+		StorageLocation: cmd.StorageLocation,
+	}
+
+	evt := shared.NewCloudEvent(
+		event.ReportArchivedEventType,
+		r.GetID(),
+		payload,
+	)
+
+	return []shared.DomainEvent{evt}, nil
+}
+
 // GetID returns the aggregate ID.
 func (r *Report) GetID() string {
 	return r.ID
@@ -100,10 +133,4 @@ func (r *Report) ID() string {
 // MarkSourceDataNotFinalized is a helper for testing/setting up the invalid state scenario.
 func (r *Report) MarkSourceDataNotFinalized() {
 	r.SourceDataFinalized = false
-}
-
-// MarkArchived is a helper for testing/setting up the immutable state scenario.
-func (r *Report) MarkArchived() {
-	r.Archived = true
-	r.Status = StatusArchived
 }
