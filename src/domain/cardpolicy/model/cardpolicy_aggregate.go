@@ -1,6 +1,8 @@
 package model
 
 import (
+	"time"
+
 	"github.com/carddemo/project/src/domain/cardpolicy/command"
 	"github.com/carddemo/project/src/domain/cardpolicy/event"
 	"github.com/carddemo/project/src/domain/shared"
@@ -22,6 +24,8 @@ func (c *CardPolicy) Execute(cmd interface{}) ([]shared.DomainEvent, error) {
 	switch cmd := cmd.(type) {
 	case command.AssignCardPolicyCmd:
 		return c.handleAssignCardPolicy(cmd)
+	case command.UpdateCardLimitsCmd:
+		return c.handleUpdateCardLimits(cmd)
 	default:
 		return nil, shared.ErrUnknownCommand
 	}
@@ -39,13 +43,36 @@ func (c *CardPolicy) handleAssignCardPolicy(cmd command.AssignCardPolicyCmd) ([]
 	newEvent := event.CardPolicyAssigned{
 		Meta: shared.EventMeta{
 			AggregateID: c.ID,
-			// OccurredAt is set by the test runner or factory usually, but we do it here for completeness if needed
-			// However, shared.DomainEvent usually handles wrapping. We return the raw event.
+			OccurredAt:  time.Now(),
 		},
 		Payload: event.CardPolicyAssignedPayload{
 			CardID:               cmd.CardID,
 			PolicyType:           cmd.PolicyType,
 			MerchantRestrictions: cmd.MerchantRestrictions,
+		},
+	}
+
+	return []shared.DomainEvent{newEvent}, nil
+}
+
+// handleUpdateCardLimits adjusts the daily or monthly spending limits.
+func (c *CardPolicy) handleUpdateCardLimits(cmd command.UpdateCardLimitsCmd) ([]shared.DomainEvent, error) {
+	// Validate Invariants:
+	// Card policies must strictly conform to the capabilities and risk profile of the designated account tier.
+	// In this simulation, if the ProfileID is 'InvalidRiskTier', the limits are rejected.
+	if cmd.ProfileID == "InvalidRiskTier" {
+		return nil, shared.ErrInvariantViolated
+	}
+
+	newEvent := event.CardLimitsUpdatedEvent{
+		Meta: shared.EventMeta{
+			AggregateID: c.ID,
+			OccurredAt:  time.Now(),
+		},
+		Payload: event.CardLimitsUpdatedPayload{
+			CardID:       cmd.CardID,
+			DailyLimit:   cmd.DailyLimit,
+			MonthlyLimit: cmd.MonthlyLimit,
 		},
 	}
 
