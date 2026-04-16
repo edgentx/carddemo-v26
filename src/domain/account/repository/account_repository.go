@@ -1,11 +1,20 @@
 package repository
 
-import "github.com/carddemo/project/src/domain/account/model"
+import (
+	"github.com/carddemo/project/src/domain/account/model"
+)
 
-// AccountRepository defines the storage interface for Account aggregates.
+// AccountRepository defines the storage contract for the Account aggregate.
 type AccountRepository interface {
-	Get(id string) (*model.Account, error)
-	Save(aggregate *model.Account) error
+	// Get retrieves an aggregate by ID. Returns ErrAggregateNotFound if not found.
+	Get(id string) (*model.AccountAggregate, error)
+
+	// Save persists the aggregate state atomically.
+	Save(agg *model.AccountAggregate) error
+
+	// Delete removes an aggregate.
 	Delete(id string) error
-	List() ([]*model.Account, error)
+
+	// List returns all aggregates.
+	List() ([]*model.AccountAggregate, error)
 }
