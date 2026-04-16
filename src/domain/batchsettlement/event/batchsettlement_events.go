@@ -13,3 +13,15 @@ type BatchOpened struct {
 func (e BatchOpened) Type() string {
 	return "com.carddemo.batch.opened"
 }
+
+// BatchReconciled is emitted when a batch is successfully reconciled and frozen.
+type BatchReconciled struct {
+	shared.DomainEventMeta
+	TotalDebits  int64 `json:"total_debits"`
+	TotalCredits int64 `json:"total_credits"`
+}
+
+// Type implements DomainEvent.
+func (e BatchReconciled) Type() string {
+	return "com.carddemo.batch.reconciled"
+}
