@@ -2,85 +2,95 @@ package model
 
 import (
 	"errors"
-
 	"github.com/carddemo/project/src/domain/account/command"
 	"github.com/carddemo/project/src/domain/account/event"
 	"github.com/carddemo/project/src/domain/shared"
 )
 
-// Account represents the Account aggregate.
-type Account struct {
-	ID      string
-	Version int
-	Status  string
-	Balance float64
+// AccountAggregate represents the Account entity.
+// It handles commands to modify its state and emits events.
+type AccountAggregate struct {
+	shared.AggregateRoot
+	ID            string
+	UserProfileID  string
+	Status        string
+	AccountType   string
 }
 
-// NewAccount creates a new Account instance.
-func NewAccount(id string) *Account {
-	return &Account{
-		ID:      id,
-		Version: 0,
+// NewAccountAggregate creates a new AccountAggregate.
+func NewAccountAggregate(id string) *AccountAggregate {
+	return &AccountAggregate{
+		AggregateRoot: shared.AggregateRoot{},
+		ID:            id,
 	}
 }
 
-// Execute handles commands for the Account aggregate.
-func (a *Account) Execute(cmd interface{}) ([]shared.DomainEvent, error) {
+// Handle processes commands. It is the entry point for domain logic.
+func (a *AccountAggregate) Handle(cmd interface{}) error {
 	switch c := cmd.(type) {
-	case command.UpdateAccountStatusCmd:
-		return a.handleUpdateAccountStatus(c)
+	case *command.OpenAccountCmd:
+		return a.openAccount(c)
+	case *command.UpdateAccountStatusCmd:
+		return a.updateStatus(c)
 	default:
-		return nil, shared.ErrUnknownCommand
+		return errors.New("unknown command type")
 	}
 }
 
-// handleUpdateAccountStatus processes the UpdateAccountStatusCmd.
-func (a *Account) handleUpdateAccountStatus(cmd command.UpdateAccountStatusCmd) ([]shared.DomainEvent, error) {
-	// Scenario: UpdateAccountStatusCmd rejected — Account status must be 'Pending' or 'Active' to process financial transactions
-	// Interpretation: This rule effectively defines the valid set of statuses for the system.
-	// If the command attempts to set a status outside this set (e.g. "Frozen", "Locked"), it is rejected.
-	validStatuses := map[string]bool{
-		"Pending":   true,
-		"Active":    true,
-		"Suspended": true,
-		"Closed":    true,
+// openAccount handles the creation of a new account.
+func (a *AccountAggregate) openAccount(cmd *command.OpenAccountCmd) error {
+	// 1. Business Invariants/Validation
+	if cmd.UserProfileID == "" {
+		return shared.ErrValidation
+	}
+	if cmd.InitialStatus == "" {
+		return shared.ErrValidation
+	}
+	if cmd.AccountType == "" {
+		return shared.ErrValidation
 	}
 
-	if !validStatuses[cmd.NewStatus] {
-		return nil, shared.ErrInvalidStatus
+	// 2. Apply State Changes
+	a.UserProfileID = cmd.UserProfileID
+	a.Status = cmd.InitialStatus
+	a.AccountType = cmd.AccountType
+
+	// 3. Generate Domain Event
+	evt := event.NewAccountOpened(a.ID, cmd)
+	// Hydrate event payload from command and new state
+	evt.Payload.AccountID = a.ID
+	evt.Payload.UserProfileID = cmd.UserProfileID
+	evt.Payload.Status = cmd.InitialStatus
+	evt.Payload.AccountType = cmd.AccountType
+
+	a.AddEvent(evt)
+
+	return nil
+}
+
+// updateStatus handles the status change of an existing account.
+func (a *AccountAggregate) updateStatus(cmd *command.UpdateAccountStatusCmd) error {
+	// 1. Business Invariants
+	if a.Status == cmd.NewStatus {
+		return nil // Idempotent or no-op
+	}
+	if cmd.NewStatus == "" {
+		return shared.ErrValidation
 	}
 
-	// Scenario: UpdateAccountStatusCmd rejected — Account closure is irreversible and requires a zero balance.
-	if cmd.NewStatus == "Closed" {
-		if a.Balance != 0 {
-			return nil, shared.ErrInvariantViolated
-		}
-	}
-
-	// Scenario: Successfully execute UpdateAccountStatusCmd
-	// 1. Capture old state for event
 	oldStatus := a.Status
 
-	// 2. Create Event
+	// 2. Apply State Changes
+	a.Status = cmd.NewStatus
+
+	// 3. Generate Domain Event
 	evt := event.NewAccountStatusUpdated(a.ID)
 	evt.Payload.AccountID = a.ID
 	evt.Payload.OldStatus = oldStatus
 	evt.Payload.NewStatus = cmd.NewStatus
 	evt.Payload.Reason = cmd.Reason
 
-	// 3. Apply state mutations
-	a.Status = cmd.NewStatus
-	a.Version++
+	a.AddEvent(evt)
 
-	return []shared.DomainEvent{evt}, nil
-}
-
-// ID satisfies the shared.Aggregate interface.
-func (a *Account) ID() string {
-	return a.ID
-}
-
-// GetID returns the aggregate ID.
-func (a *Account) GetID() string {
-	return a.ID
+	return nil
 }
