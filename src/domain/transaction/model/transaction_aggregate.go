@@ -27,3 +27,8 @@ func (t *Transaction) Execute(cmd interface{}) ([]shared.DomainEvent, error) {
 func (t *Transaction) GetID() string {
 	return t.ID
 }
+
+// ID satisfies the shared.Aggregate interface.
+func (t *Transaction) ID() string {
+	return t.ID
+}
