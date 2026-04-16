@@ -9,18 +9,42 @@ import (
 	"github.com/carddemo/project/src/domain/shared"
 )
 
+// Status constants to model aggregate state transitions
+type ExportStatus string
+
+const (
+	StatusInitiated ExportStatus = "initiated"
+	StatusCompleted ExportStatus = "completed"
+)
+
 // ExportJob represents the ExportJob aggregate.
 type ExportJob struct {
 	shared.AggregateRoot
-	ID string
+	ID     string
+	Status ExportStatus
 }
 
 // NewExportJob creates a new ExportJob instance.
 func NewExportJob(id string) *ExportJob {
 	return &ExportJob{
-		ID: id,
+		ID:            id,
+		Status:        "", // Initial state
 		AggregateRoot: shared.AggregateRoot{},
 	}
+}
+
+// NewExportJobFromHistory creates an ExportJob from existing events (for testing setup).
+// In a real app, this would be done by the Repository loading state.
+func (e *ExportJob) ApplyEvent(evt shared.DomainEvent) error {
+	switch evt.Type {
+	case event.EventExportInitiated, "com.carddemo.export.initiated":
+		e.Status = StatusInitiated
+	case event.EventExportCompleted, "com.carddemo.export.completed":
+		e.Status = StatusCompleted
+	default:
+		return errors.New("unknown event type")
+	}
+	return nil
 }
 
 // Execute handles commands for the ExportJob aggregate.
@@ -28,6 +52,8 @@ func (e *ExportJob) Execute(cmd interface{}) ([]shared.DomainEvent, error) {
 	switch c := cmd.(type) {
 	case command.InitiateExportCmd:
 		return e.handleInitiateExport(c)
+	case command.CompleteExportCmd:
+		return e.handleCompleteExport(c)
 	default:
 		return nil, shared.ErrUnknownCommand
 	}
@@ -49,10 +75,11 @@ func (e *ExportJob) handleInitiateExport(cmd command.InitiateExportCmd) ([]share
 		Timestamp:     time.Now().Unix(),
 	}
 
-	// Apply the event to the aggregate (emit it)
-	// Using the helper from AggregateRoot to package the event
+	// Apply logic locally to ensure consistency before emitting
+	e.Status = StatusInitiated
+
 	domainEvent := shared.NewDomainEvent(
-		"com.carddemo.export.initiated", // CloudEvents type convention
+		"com.carddemo.export.initiated",
 		e.ID,
 		payload,
 	)
@@ -60,26 +87,16 @@ func (e *ExportJob) handleInitiateExport(cmd command.InitiateExportCmd) ([]share
 	return []shared.DomainEvent{domainEvent}, nil
 }
 
-// ID returns the aggregate ID.
-func (e *ExportJob) GetID() string {
-	return e.ID
+// handleCompleteExport processes the CompleteExportCmd.
+// MARKER: This is the method under test. It starts empty to ensure Red Phase.
+func (e *ExportJob) handleCompleteExport(cmd command.CompleteExportCmd) ([]shared.DomainEvent, error) {
+	// TODO: Implement state validation
+	// TODO: Implement upstream check
+	// TODO: Emit event
+	return nil, nil
 }
 
 // ID satisfies the shared.Aggregate interface.
 func (e *ExportJob) ID() string {
 	return e.ID
-}
-
-// ApplyEvent updates the aggregate state based on a domain event.
-// Note: In this pure state model, we might not have internal state fields to update yet,
-// but the pattern requires processing events if reconstituting from state.
-func (e *ExportJob) ApplyEvent(evt shared.DomainEvent) error {
-	switch evt.Type {
-	case event.EventExportInitiated, "com.carddemo.export.initiated":
-		// If we had status fields like 'Status', we would update them here.
-		// e.Status = "Initiated"
-		return nil
-	default:
-		return errors.New("unknown event type")
-	}
 }
