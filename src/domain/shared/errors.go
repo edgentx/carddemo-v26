@@ -1,11 +1,11 @@
-package userprofile
+package shared
 
 import "errors"
 
 var (
-	// ErrIdentityNotVerified is returned when identification details are not verified.
-	ErrIdentityNotVerified = errors.New("user profile must contain verified identity information to be linked to an account")
+	// ErrUnknownCommand is returned when an unregistered command is executed.
+	ErrUnknownCommand = errors.New("command not recognized")
 
-	// ErrDuplicatePrimaryProfile is returned when an active account already has a primary profile.
-	ErrDuplicatePrimaryProfile = errors.New("an active account must have exactly one primary user profile")
+	// ErrInvariantViolated is returned when a business rule is broken.
+	ErrInvariantViolated = errors.New("business rule violation")
 )
