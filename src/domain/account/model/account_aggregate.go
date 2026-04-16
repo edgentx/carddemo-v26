@@ -28,3 +28,8 @@ func (a *Account) Execute(cmd interface{}) ([]shared.DomainEvent, error) {
 func (a *Account) GetID() string {
 	return a.ID
 }
+
+// ID satisfies the shared.Aggregate interface.
+func (a *Account) ID() string {
+	return a.ID
+}
