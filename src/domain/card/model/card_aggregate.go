@@ -1,82 +1,78 @@
 package model
 
 import (
+	"errors"
+	"fmt"
+	"time"
+
 	"github.com/carddemo/project/src/domain/card/command"
 	"github.com/carddemo/project/src/domain/card/event"
 	"github.com/carddemo/project/src/domain/shared"
-	"time"
 )
 
-// Card represents the Card aggregate.
-// It holds state necessary to enforce invariants during command execution.
+var (
+	// ErrCardAlreadyLost indicates the card is already lost or stolen.
+	ErrCardAlreadyLost = errors.New("card is already reported as lost or stolen")
+	// ErrLimitExceeded indicates the daily transaction limit has been reached.
+	ErrLimitExceeded = errors.New("card usage cannot exceed the configured daily transaction limit")
+)
+
+// Card represents the Card Aggregate.
 type Card struct {
 	shared.AggregateRoot
-	ID            string
-	AccountID     string
-	CardType      string
-	SpendingLimits map[string]int
-	IsLostOrStolen bool
-	DailyTxnLimit  int
-	CurrentUsage   int
+	ID           string
+	AccountID    string
+	CardType     string
+	Status       string // Active, Lost, Stolen, Closed
+	DailyLimit   int
+	DailyUsage   int
+	IssuedAt     time.Time
+	UpdatedAt    time.Time
 }
 
-// NewCard creates a new Card instance.
-func NewCard(id string) *Card {
-	return &Card{
-		ID:            id,
-		SpendingLimits: make(map[string]int),
-	}
-}
-
-// Execute handles commands for the Card aggregate.
-func (c *Card) Execute(cmd interface{}) ([]shared.DomainEvent, error) {
+// Handle executes commands against the Card aggregate.
+// It returns an error if the command violates business invariants.
+func (c *Card) Handle(cmd interface{}) error {
 	switch v := cmd.(type) {
-	case command.IssueCardCmd:
-		return c.handleIssueCard(v)
+	case *command.ReportCardLostCmd:
+		return c.handleReportLost(v)
 	default:
-		return nil, shared.ErrUnknownCommand
+		return fmt.Errorf("unknown command: %T", cmd)
 	}
 }
 
-// handleIssueCard processes the IssueCardCmd command.
-func (c *Card) handleIssueCard(cmd command.IssueCardCmd) ([]shared.DomainEvent, error) {
-	// 1. Validate Invariants based on current aggregate state (simulated by command payload for testability)
+// handleReportLost processes the ReportCardLostCmd.
+func (c *Card) handleReportLost(cmd *command.ReportCardLostCmd) error {
+	// 1. Check Invariants (State validation)
 
-	// Invariant: A lost or stolen card cannot be approved for any new transactions.
-	if cmd.IsLostOrStolen {
-		return nil, shared.ErrInvariantViolated
+	// Check if already lost/stolen
+	if c.Status == "LOST" || c.Status == "STOLEN" {
+		return ErrCardAlreadyLost
 	}
 
-	// Invariant: Card usage cannot exceed the configured daily transaction limit.
-	if cmd.CurrentUsage > cmd.DailyTxnLimit {
-		return nil, shared.ErrInvariantViolated
+	// Check daily limits
+	currentUsage := c.DailyUsage
+	if cmd.ForceUsage != nil {
+		currentUsage = *cmd.ForceUsage
 	}
 
-	// 2. Apply state changes (Mutation)
-	c.AccountID = cmd.AccountID
-	c.CardType = cmd.CardType
-	c.SpendingLimits = cmd.SpendingLimits
-	c.IsLostOrStolen = cmd.IsLostOrStolen
-	c.DailyTxnLimit = cmd.DailyTxnLimit
-	c.CurrentUsage = cmd.CurrentUsage
+	// Business rule: usage cannot exceed limit.
+	if currentUsage > c.DailyLimit {
+		return ErrLimitExceeded
+	}
 
-	// 3. Generate Domain Event
-	evt := &event.CardIssued{
+	// 2. Apply State Changes
+	c.Status = "LOST"
+	c.UpdatedAt = time.Now()
+
+	// 3. Emit Event
+	e := &event.CardReportedLost{
 		AggregateID: c.ID,
-		AccountID:   cmd.AccountID,
-		CardType:    cmd.CardType,
-		IssuedAt:    time.Now(),
+		Reason:      cmd.LossReason,
+		ReportedBy:  cmd.ReportedBy,
+		OccurredAt:  time.Now(),
 	}
+	c.RecordEvent(e)
 
-	return []shared.DomainEvent{evt}, nil
-}
-
-// ID returns the aggregate ID.
-func (c *Card) GetID() string {
-	return c.ID
-}
-
-// ID satisfies the shared.Aggregate interface.
-func (c *Card) ID() string {
-	return c.ID
+	return nil
 }
