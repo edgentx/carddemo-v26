@@ -1,6 +1,8 @@
 package repository
 
 import (
+	"context"
+
 	"github.com/carddemo/project/src/domain/exportjob/model"
 )
 
@@ -15,7 +17,7 @@ type ExportJobRepository interface {
 	// UpdateStatus atomically updates the status of an export job.
 	UpdateStatus(id string, newStatus string) error
 
-	 // IncrementRetry atomically increments the retry count for an export job.
+	// IncrementRetry atomically increments the retry count for an export job.
 	IncrementRetry(id string) error
 
 	// CreateIndexes ensures the necessary database indexes exist.
