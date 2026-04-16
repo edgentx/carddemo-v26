@@ -26,6 +26,7 @@ type UserProfile struct {
 	CreditScore  int
 	IsPrimary    bool
 	IsRegistered bool
+	AccountID    string
 
 	// repo is injected to allow the Aggregate to verify cross-aggregate invariants
 	// such as uniqueness of a primary profile within an account context.
@@ -56,6 +57,8 @@ func (u *UserProfile) Execute(cmd interface{}) ([]shared.DomainEvent, error) {
 	switch c := cmd.(type) {
 	case command.RegisterUserCmd:
 		return u.handleRegisterUser(c)
+	case command.LinkUserToAccountCmd:
+		return u.handleLinkUserToAccount(c)
 	default:
 		return nil, shared.ErrUnknownCommand
 	}
@@ -68,50 +71,45 @@ func (u *UserProfile) handleRegisterUser(cmd command.RegisterUserCmd) ([]shared.
 		return nil, ErrIdentityNotVerified
 	}
 
-	// Invariant 2: An active account must have exactly one primary user profile.
-	// We check if another primary profile exists for this account (assuming AccountID is derived or part of context).
-	// For this specific test case, we check if *this* aggregate is already Primary.
-	// If the domain rule implies checking OTHER aggregates, we use the injected repo.
-	// Based on the test scenario, it seems we are checking the state of the aggregate itself or system state.
-	
 	// Logic to check for existing primary profiles using the repo if available.
-	// This satisfies the "exactly one" rule across the system.
 	if u.repo != nil {
 		existing, _ := u.repo.List()
 		for _, ex := range existing {
 			if ex.ID != u.ID && ex.IsPrimary {
-				// We found another primary profile. 
-				// Note: In a real scenario, we might filter by AccountID. 
-				// Given the mock repo, we check global uniqueness for the test.
 				return nil, ErrDuplicatePrimaryProfile
 			}
 		}
 	}
 
-	// If the aggregate itself is already primary and we are trying to register it again (or similar logic)
-	if u.IsPrimary && u.IsRegistered {
-		return nil, ErrDuplicatePrimaryProfile
+	u.Email = cmd.ContactInfo.Email
+	u.CreditScore = cmd.CreditProfile.Score
+	u.IsRegistered = true
+
+	evt := event.NewUserRegistered(u.ID, u.Email, u.CreditScore)
+	return []shared.DomainEvent{evt}, nil
+}
+
+// handleLinkUserToAccount processes the LinkUserToAccountCmd command.
+func (u *UserProfile) handleLinkUserToAccount(cmd command.LinkUserToAccountCmd) ([]shared.DomainEvent, error) {
+	// Invariant: Identity must be verified to link to an account.
+	if !cmd.IsVerified {
+		return nil, ErrIdentityNotVerified
+	}
+
+	// Invariant: Check if another user is already primary for this account.
+	if u.repo != nil {
+		existing, _ := u.repo.List()
+		for _, ex := range existing {
+			if ex.ID != u.ID && ex.AccountID == cmd.AccountID && ex.IsPrimary {
+				return nil, ErrDuplicatePrimaryProfile
+			}
+		}
 	}
 
 	// Apply state changes
-	u.Email = cmd.ContactInfo.Email
-	u.CreditScore = cmd.CreditProfile.Score
-	u.IsPrimary = true // Assuming registration implies primary for this story context
-	u.IsRegistered = true
+	u.AccountID = cmd.AccountID
+	u.IsPrimary = true
 
-	// Create Event
-	evt := event.NewUserRegistered(u.ID, u.Email, u.CreditScore)
-	u.AddEvent(evt)
-
-	return u.GetEvents(), nil
-}
-
-// ID returns the aggregate ID.
-func (u *UserProfile) GetID() string {
-	return u.ID
-}
-
-// ID satisfies the shared.Aggregate interface.
-func (u *UserProfile) ID() string {
-	return u.ID
+	evt := event.NewUserLinkedToAccount(u.ID, u.AccountID)
+	return []shared.DomainEvent{evt}, nil
 }
