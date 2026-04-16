@@ -22,6 +22,8 @@ func (t *Transaction) Execute(cmd interface{}) ([]shared.DomainEvent, error) {
 	switch c := cmd.(type) {
 	case command.SubmitTransactionCmd:
 		return t.handleSubmitTransaction(c)
+	case command.ReverseTransactionCmd:
+		return t.handleReverseTransaction(c)
 	default:
 		return nil, shared.ErrUnknownCommand
 	}
@@ -52,6 +54,29 @@ func (t *Transaction) handleSubmitTransaction(cmd command.SubmitTransactionCmd) 
 	}
 
 	// Record the event internally (if needed for replay/audit) and return
+	t.RecordEvent(evt)
+
+	return []shared.DomainEvent{evt}, nil
+}
+
+// handleReverseTransaction validates the command and applies the resulting events.
+func (t *Transaction) handleReverseTransaction(cmd command.ReverseTransactionCmd) ([]shared.DomainEvent, error) {
+	// Invariant 1: Transaction amount must be strictly greater than zero.
+	if cmd.Amount <= 0 {
+		return nil, shared.ErrAmountMustBePositive
+	}
+
+	// Invariant 2: Account must be in 'Active' status to accept transactions.
+	if cmd.AccountStatus != "Active" {
+		return nil, shared.ErrAccountNotActive
+	}
+
+	// Create the domain event.
+	evt := event.TransactionReversed{
+		TransactionID: cmd.TransactionID,
+		Reason:        cmd.Reason,
+	}
+
 	t.RecordEvent(evt)
 
 	return []shared.DomainEvent{evt}, nil
