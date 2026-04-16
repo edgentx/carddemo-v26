@@ -1,11 +1,11 @@
-package shared
+package userprofile
 
 import "errors"
 
-// Common Domain Errors
 var (
-	ErrUnknownCommand      = errors.New("unknown command")
-	ErrInvalidStatus       = errors.New("invalid status")
-	ErrInvalidBalance      = errors.New("invalid balance for operation")
-	ErrInvariantViolated   = errors.New("domain invariant violated")
+	// ErrIdentityNotVerified is returned when identification details are not verified.
+	ErrIdentityNotVerified = errors.New("user profile must contain verified identity information to be linked to an account")
+
+	// ErrDuplicatePrimaryProfile is returned when an active account already has a primary profile.
+	ErrDuplicatePrimaryProfile = errors.New("an active account must have exactly one primary user profile")
 )
