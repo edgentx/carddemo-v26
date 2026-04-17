@@ -7,11 +7,13 @@ import (
 	"github.com/carddemo/project/src/domain/batchsettlement/repository"
 )
 
+// MockBatchSettlementRepository is a fake implementation for testing.
 type MockBatchSettlementRepository struct {
 	mu   sync.RWMutex
 	data map[string]*model.BatchSettlement
 }
 
+// NewMockBatchSettlementRepository creates a new mock instance.
 func NewMockBatchSettlementRepository() *MockBatchSettlementRepository {
 	return &MockBatchSettlementRepository{data: make(map[string]*model.BatchSettlement)}
 }
@@ -28,13 +30,6 @@ func (m *MockBatchSettlementRepository) Save(aggregate *model.BatchSettlement) e
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.data[aggregate.ID] = aggregate
-	return nil
-}
-
-func (m *MockBatchSettlementRepository) Delete(id string) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	delete(m.data, id)
 	return nil
 }
 
